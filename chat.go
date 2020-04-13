@@ -18,13 +18,21 @@ func (t *templateHandler) ServeHTTP(w http.ResponseWriter, r *http.Request) {
 	t.once.Do(func() {
 		t.templ = template.Must(template.ParseFiles(filepath.Join("templates", t.filename)))
 	})
+
 	if err := t.templ.Execute(w, nil); err != nil {
-		panic(err)
+		log.Fatal(err)
 	}
 }
 
 func main() {
+	r := newRoom()
+
 	http.Handle("/", &templateHandler{filename: "chat.html"})
+	http.Handle("/room", r)
+
+	// チャットルーム開始
+	go r.run()
+
 	if err := http.ListenAndServe(":8080", nil); err != nil {
 		log.Fatal("ListenAndServe:", nil)
 	}
