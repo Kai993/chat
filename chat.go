@@ -33,6 +33,7 @@ func main() {
 	// r.tracer = trace.New(os.Stdout)
 
 	http.Handle("/login", &templateHandler{filename: "login.html"})
+	http.HandleFunc("/auth/", loginHandler)
 	http.Handle("/chat", MustAuth(&templateHandler{filename: "chat.html"}))
 	http.Handle("/room", r)
 
