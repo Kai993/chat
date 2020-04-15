@@ -3,8 +3,8 @@
 go-build: ## ビルド
 	@go build -o chat -v
 
-go-test: ## すべてのテストを実行する
-	@go test -v ./
+go-test-trace: ## traceパッケージのテスト
+	@go test -v ./trace
 
 go-clean: ## build/testなどを削除する
 	@go clean

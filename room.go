@@ -5,6 +5,7 @@ import (
 	"net/http"
 
 	"github.com/gorilla/websocket"
+	"github.com/kai993/chat/trace"
 )
 
 type room struct {
@@ -19,6 +20,9 @@ type room struct {
 
 	// clients : 在室しているすべてのクライアント
 	clients map[*client]bool
+
+	// tracer : チャットルーム上で行われた操作のログを受け取る
+	tracer trace.Tracer
 }
 
 func newRoom() *room {
@@ -27,6 +31,7 @@ func newRoom() *room {
 		join:    make(chan *client),
 		leave:   make(chan *client),
 		clients: make(map[*client]bool),
+		tracer:  trace.Off(),
 	}
 }
 
@@ -36,20 +41,25 @@ func (r *room) run() {
 		case client := <-r.join:
 			// 参加
 			r.clients[client] = true
+			r.tracer.Trace("新しいクライアントが参加しました")
 		case client := <-r.leave:
 			// 退室
 			delete(r.clients, client)
 			close(client.send)
+			r.tracer.Trace("クライアントが退室しました")
 		case msg := <-r.forward:
+			r.tracer.Trace("メッセージを受信しました: ", string(msg))
 			// すべてのクライアントにメッセージを転送
 			for client := range r.clients {
 				select {
 				case client.send <- msg:
 					// メッセージを送信
+					r.tracer.Trace(" -- クライアントに送信されました")
 				default:
 					// 送信に失敗
 					delete(r.clients, client)
 					close(client.send)
+					r.tracer.Trace(" -- 送信に失敗しました。クライアントをクリーンアップします")
 				}
 			}
 		}
