@@ -1,6 +1,10 @@
 package main
 
-import "github.com/gorilla/websocket"
+import (
+	"time"
+
+	"github.com/gorilla/websocket"
+)
 
 // client : チャットを行っている1人のユーザー
 type client struct {
@@ -8,15 +12,23 @@ type client struct {
 	socket *websocket.Conn
 
 	// send : メッセージが送られるチャネル
-	send chan []byte
+	send chan *message
 
 	// room : クライアントが参加しているチャットルーム
 	room *room
+
+	// userData : ユーザーに関する情報を保持する
+	userData map[string]interface{}
 }
 
+// read : メッセージ受信
 func (c *client) read() {
 	for {
-		if _, msg, err := c.socket.ReadMessage(); err == nil {
+		var msg *message
+
+		if err := c.socket.ReadJSON(&msg); err == nil {
+			msg.When = time.Now()
+			msg.Name = c.userData["name"].(string)
 			c.room.forward <- msg
 		} else {
 			break
@@ -25,9 +37,10 @@ func (c *client) read() {
 	c.socket.Close()
 }
 
+// write : メッセージ送信
 func (c *client) write() {
 	for msg := range c.send {
-		if err := c.socket.WriteMessage(websocket.TextMessage, msg); err != nil {
+		if err := c.socket.WriteJSON(msg); err != nil {
 			break
 		}
 	}

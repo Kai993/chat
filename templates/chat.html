@@ -19,6 +19,7 @@
   <ul id="messages"></ul>
   WebSocketを使ったチャットアプリケーション
   <form id="chatbox">
+    {{.UserData.name}}:<br />
     <textarea></textarea>
     <input type="submit" value="送信" />
   </form>
@@ -36,7 +37,7 @@
           return false;
         }
 
-        socket.send(msgBox.val());
+        socket.send(JSON.stringify({ "Message": msgBox.val() }));
         msgBox.val("");
         return false;
       });
@@ -49,7 +50,15 @@
           alert("接続が終了しました。");
         }
         socket.onmessage = function (e) {
-          messages.append($("<li>").text(e.data));
+          console.log(e)
+          var msg = eval("(" + e.data + ")");
+          messages.append(
+            $("<li>").append(
+              $("<strong>").text(msg.Name + ": "),
+              $("<span>").text(msg.Message),
+              $("<span>").text("(" + msg.When + ")") // TODO: yyyy/mm/dd hh:mm:ssで表示する
+            )
+          );
         }
       }
     });
