@@ -69,7 +69,7 @@ func main() {
 		github.New(githubOauthClientID, githubSecurityKey, "http://localhost:8080/auth/callback/github"),
 	)
 
-	r := newRoom()
+	r := newRoom(UseGravatar)
 	// r.tracer = trace.New(os.Stdout)
 
 	http.Handle("/login", &templateHandler{filename: "login.html"})

@@ -6,6 +6,9 @@ go-build: ## ビルド
 go-test-trace: ## traceパッケージのテスト
 	@go test -v ./trace
 
+go-test-all: ## traceパッケージのテスト
+	@go test ./...
+
 go-clean: ## build/testなどを削除する
 	@go clean
 
