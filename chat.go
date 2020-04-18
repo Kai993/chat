@@ -3,6 +3,8 @@ package main
 import (
 	"flag"
 	"html/template"
+	"io"
+	"io/ioutil"
 	"log"
 	"net/http"
 	"os"
@@ -14,6 +16,13 @@ import (
 	"github.com/stretchr/gomniauth/providers/google"
 	"github.com/stretchr/objx"
 )
+
+// 現在アクティブなAvatarの実装
+var avatars Avatar = TryAvatars{
+	UseFileSystemAvatar,
+	UseAuthAvatar,
+	UseGravatar,
+}
 
 const (
 	googleOauthClientID = "488806591869-skelvuocd7ffcehn04fopj352gaesp2h.apps.googleusercontent.com"
@@ -55,6 +64,31 @@ func logoutHandler(w http.ResponseWriter, r *http.Request) {
 	w.WriteHeader(http.StatusTemporaryRedirect)
 }
 
+func uploaderHandler(w http.ResponseWriter, r *http.Request) {
+	userID := r.FormValue("userid")
+	file, header, err := r.FormFile("avatarFile")
+	if err != nil {
+		io.WriteString(w, err.Error())
+		return
+	}
+
+	defer file.Close()
+	data, err := ioutil.ReadAll(file)
+	if err != nil {
+		io.WriteString(w, err.Error())
+		return
+	}
+
+	filename := filepath.Join("avatars", userID+filepath.Ext(header.Filename))
+	err = ioutil.WriteFile(filename, data, 0777)
+	if err != nil {
+		io.WriteString(w, err.Error())
+		return
+	}
+
+	io.WriteString(w, "成功")
+}
+
 func main() {
 	var addr = flag.String("addr", ":8080", "アプリケーションのアドレス")
 	flag.Parse()
@@ -69,12 +103,15 @@ func main() {
 		github.New(githubOauthClientID, githubSecurityKey, "http://localhost:8080/auth/callback/github"),
 	)
 
-	r := newRoom(UseGravatar)
+	r := newRoom()
 	// r.tracer = trace.New(os.Stdout)
 
 	http.Handle("/login", &templateHandler{filename: "login.html"})
 	http.HandleFunc("/logout", logoutHandler)
 	http.HandleFunc("/auth/", loginHandler)
+	http.Handle("/upload", &templateHandler{filename: "upload.html"})
+	http.HandleFunc("/uploader", uploaderHandler)
+	http.Handle("/avatars/", http.StripPrefix("/avatars/", http.FileServer(http.Dir("./avatars"))))
 	http.Handle("/chat", MustAuth(&templateHandler{filename: "chat.html"}))
 	http.Handle("/room", r)
 

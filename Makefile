@@ -7,9 +7,10 @@ go-test-trace: ## traceパッケージのテスト
 	@go test -v ./trace
 
 go-test-all: ## traceパッケージのテスト
-	@go test ./...
+	@go test -v ./...
 
 go-clean: ## build/testなどを削除する
+	@rm ./avatars/*
 	@go clean
 
 go-format: ## ソースをフォーマットする

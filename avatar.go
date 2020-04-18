@@ -1,11 +1,10 @@
 package main
 
 import (
-	"crypto/md5"
 	"errors"
 	"fmt"
-	"io"
-	"strings"
+	"io/ioutil"
+	"path/filepath"
 )
 
 // GravatarURL : Gravatar URL
@@ -17,41 +16,66 @@ var ErrNoAvatarURL = errors.New("chat: アバターのURLを取得できませ�
 type (
 	// Avatar : ユーザーのプロフィール画像を表す型
 	Avatar interface {
-		GetAvatarURL(c *client) (string, error)
+		GetAvatarURL(ChatUser) (string, error)
 	}
 
-	// AuthAvatar :
+	// AuthAvatar : OAuth認証で取得したアバター
 	AuthAvatar struct{}
 
-	// GravatarAvatar :
+	// GravatarAvatar : Gravatarで取得したアバター
 	GravatarAvatar struct{}
+
+	// FileSystemAvatar : アップロードしたアバター
+	FileSystemAvatar struct{}
+
+	// TryAvatars : すべての実装を切り替えながらURLを取得する
+	TryAvatars []Avatar
 )
 
-// UseAuthAvatar : アバターを使用する
+// UseAuthAvatar : Oauth認証で取得したアバターを使用する
 var UseAuthAvatar AuthAvatar
 
-// UseGravatar : Gravatarを使用する
+// UseGravatar : Gravatarで取得したアバターを使用する
 var UseGravatar GravatarAvatar
 
-// GetAvatarURL : アバターURLを取得する
-func (AuthAvatar) GetAvatarURL(c *client) (string, error) {
-	if url, ok := c.userData["avatar_url"]; ok {
-		if urlStr, ok := url.(string); ok {
-			return urlStr, nil
-		}
-	}
+// UseFileSystemAvatar : アップロードしたアバターを使用する
+var UseFileSystemAvatar FileSystemAvatar
 
+// GetAvatarURL : アバターURLを取得する
+func (AuthAvatar) GetAvatarURL(u ChatUser) (string, error) {
+	url := u.AvatarURL()
+	if url != "" {
+		return url, nil
+	}
 	return "", ErrNoAvatarURL
 }
 
-func (GravatarAvatar) GetAvatarURL(c *client) (string, error) {
-	if email, ok := c.userData["email"]; ok {
-		if emailStr, ok := email.(string); ok {
-			m := md5.New()
-			io.WriteString(m, strings.ToLower(emailStr))
-			return fmt.Sprintf("%s/%x", GravatarURL, m.Sum(nil)), nil
+// GetAvatarURL : GravatarURLを取得する
+func (GravatarAvatar) GetAvatarURL(u ChatUser) (string, error) {
+	return fmt.Sprintf("%s/%s", GravatarURL, u.UniqueID()), nil
+}
+
+// GetAvatarURL : ./avatars/から画像のURLを取得する
+func (FileSystemAvatar) GetAvatarURL(u ChatUser) (string, error) {
+	if files, err := ioutil.ReadDir("avatars"); err == nil {
+		for _, file := range files {
+			if file.IsDir() {
+				continue
+			}
+
+			if match, _ := filepath.Match(u.UniqueID()+"*", file.Name()); match {
+				return fmt.Sprintf("/avatars/%s", file.Name()), nil
+			}
 		}
 	}
+	return "", ErrNoAvatarURL
+}
 
+func (a TryAvatars) GetAvatarURL(u ChatUser) (string, error) {
+	for _, avatar := range a {
+		if url, err := avatar.GetAvatarURL(u); err == nil {
+			return url, nil
+		}
+	}
 	return "", ErrNoAvatarURL
 }
