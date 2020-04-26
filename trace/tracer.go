@@ -5,30 +5,21 @@ import (
 	"io"
 )
 
-// Tracer : コード内での出来事を記録できるオブジェクトを表すインタフェース
-type Tracer interface {
-	Trace(...interface{})
+// Tracer : コード内での出来事を記録する
+type Tracer struct {
+	out io.Writer
 }
 
 // New : Tracerを生成する
 func New(w io.Writer) Tracer {
-	return &tracer{out: w}
+	return Tracer{out: w}
 }
 
-type tracer struct {
-	out io.Writer
-}
+// Trace : ログを記録する
+func (t Tracer) Trace(a ...interface{}) {
+	if t.out == nil {
+		return
+	}
 
-func (t *tracer) Trace(a ...interface{}) {
-	t.out.Write([]byte(fmt.Sprint(a...)))
-	t.out.Write([]byte("\n"))
-}
-
-type nilTracer struct{}
-
-func (t *nilTracer) Trace(a ...interface{}) {}
-
-// Off : ログを無効化する
-func Off() Tracer {
-	return &nilTracer{}
+	fmt.Fprintln(t.out, a...)
 }
